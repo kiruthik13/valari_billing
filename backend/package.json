@@ -1,0 +1,33 @@
+{
+    "name": "valari-bill-generator-backend",
+    "version": "1.0.0",
+    "description": "Backend API for Valari Bill Generator with Firebase integration",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node --watch server.js",
+        "seed": "node src/seed.js",
+        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    },
+    "keywords": [
+        "invoice",
+        "bill",
+        "generator",
+        "firebase",
+        "pdf"
+    ],
+    "author": "Valari Iyarkai Velan Urpathi Maiyam",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.18.2",
+        "firebase-admin": "^12.0.0",
+        "puppeteer": "^23.0.0",
+        "nodemailer": "^6.9.7",
+        "dotenv": "^16.3.1",
+        "cors": "^2.8.5"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0"
+    }
+}
