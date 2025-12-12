@@ -7,39 +7,48 @@ import { renderInvoiceHtml } from './invoiceTemplate.js';
  * @param {Object} invoice - Invoice data
  * @returns {Promise<Buffer>} PDF buffer
  */
-export async function generateInvoicePdf(invoice) {
+export async function generateInvoicePdf(invoiceData) {
     let browser;
 
     try {
+        const html = renderInvoiceHtml(invoiceData);
+
+        // Launch Puppeteer with production-ready options
         browser = await puppeteer.launch({
             headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
+                '--window-size=1920x1080'
+            ],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
+                process.env.CHROME_BIN ||
+                puppeteer.executablePath()
         });
 
         const page = await browser.newPage();
-        const html = renderInvoiceHtml(invoice);
-
         await page.setContent(html, { waitUntil: 'networkidle0' });
 
         const pdfBuffer = await page.pdf({
             format: 'A4',
             printBackground: true,
             margin: {
-                top: '20px',
-                right: '20px',
-                bottom: '20px',
-                left: '20px'
+                top: '10mm',
+                right: '10mm',
+                bottom: '10mm',
+                left: '10mm'
             }
         });
 
+        await browser.close();
         return pdfBuffer;
     } catch (error) {
+        if (browser) await browser.close();
         console.error('PDF generation error:', error);
         throw new Error('Failed to generate PDF');
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
     }
 }
 
