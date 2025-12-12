@@ -25,8 +25,28 @@ export default function InvoiceHistory() {
     }
   };
 
-  const handleDownloadPdf = (id) => {
-    window.open(invoicesAPI.getPdfUrl(id), '_blank');
+  const handleDownloadPdf = async (id, invoiceNumber) => {
+    try {
+      const url = invoicesAPI.getPdfUrl(id);
+
+      // Fetch the PDF as a blob
+      const response = await fetch(url);
+      const blob = await response.blob();
+
+      // Create a download link
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      setToast({ message: 'PDF downloaded successfully!', type: 'success' });
+    } catch (error) {
+      setToast({ message: 'Failed to download PDF', type: 'error' });
+    }
   };
 
   const handleDelete = async (id) => {
@@ -148,8 +168,8 @@ export default function InvoiceHistory() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${invoice.status === 'paid'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-yellow-100 text-yellow-800'
                         }`}>
                         {invoice.status || 'draft'}
                       </span>
