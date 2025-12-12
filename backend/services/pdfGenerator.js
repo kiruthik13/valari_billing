@@ -1,25 +1,43 @@
-import chromium from '@sparticuz/chromium';
-import puppeteer from 'puppeteer-core';
 import { renderInvoiceHtml } from './invoiceTemplate.js';
 
 /**
- * Generate PDF from invoice data using @sparticuz/chromium
- * Works on Render free tier - no system dependencies needed!
+ * Generate PDF from invoice data
+ * Works both locally (Windows/Mac) and on Render (Linux)
  * @param {Object} invoiceData - Invoice data
  * @returns {Promise<Buffer>} PDF buffer
  */
 export async function generateInvoicePdf(invoiceData) {
     let browser;
+    let puppeteer;
+
     try {
         const html = renderInvoiceHtml(invoiceData);
 
-        // Launch browser with @sparticuz/chromium (works on Render free tier)
-        browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-        });
+        // Detect environment and use appropriate Puppeteer
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        if (isProduction) {
+            // Production (Render) - use @sparticuz/chromium
+            const chromium = await import('@sparticuz/chromium');
+            puppeteer = await import('puppeteer-core');
+
+            console.log('🚀 Using @sparticuz/chromium for production');
+            browser = await puppeteer.default.launch({
+                args: chromium.default.args,
+                defaultViewport: chromium.default.defaultViewport,
+                executablePath: await chromium.default.executablePath(),
+                headless: chromium.default.headless,
+            });
+        } else {
+            // Local development - use regular puppeteer
+            puppeteer = await import('puppeteer');
+
+            console.log('🚀 Using regular Puppeteer for local development');
+            browser = await puppeteer.default.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+        }
 
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'networkidle0' });
