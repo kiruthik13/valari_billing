@@ -1,32 +1,24 @@
-import puppeteer from 'puppeteer';
-import { bucket } from '../config/firebase.js';
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import { renderInvoiceHtml } from './invoiceTemplate.js';
 
 /**
- * Generate PDF from invoice data using Puppeteer
- * @param {Object} invoice - Invoice data
+ * Generate PDF from invoice data using @sparticuz/chromium
+ * Works on Render free tier - no system dependencies needed!
+ * @param {Object} invoiceData - Invoice data
  * @returns {Promise<Buffer>} PDF buffer
  */
 export async function generateInvoicePdf(invoiceData) {
     let browser;
-
     try {
         const html = renderInvoiceHtml(invoiceData);
 
-        // Launch Puppeteer with production-ready options
+        // Launch browser with @sparticuz/chromium (works on Render free tier)
         browser = await puppeteer.launch({
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--window-size=1920x1080'
-            ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH ||
-                process.env.CHROME_BIN ||
-                puppeteer.executablePath()
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
         });
 
         const page = await browser.newPage();
@@ -44,36 +36,32 @@ export async function generateInvoicePdf(invoiceData) {
         });
 
         await browser.close();
+        console.log('✅ PDF generated successfully');
         return pdfBuffer;
     } catch (error) {
         if (browser) await browser.close();
-        console.error('PDF generation error:', error);
-        throw new Error('Failed to generate PDF');
+        console.error('❌ PDF generation error:', error);
+        throw new Error(`Failed to generate PDF: ${error.message}`);
     }
 }
 
 /**
- * Upload PDF to Firebase Storage
- * @param {string} invoiceId - Invoice document ID
+ * Upload PDF to Firebase Storage (optional)
  * @param {Buffer} pdfBuffer - PDF buffer
- * @returns {Promise<string>} Public URL of uploaded PDF
+ * @param {string} invoiceNumber - Invoice number
+ * @returns {Promise<string>} Public URL
  */
-export async function uploadPdfToStorage(invoiceId, pdfBuffer) {
-    try {
-        const fileName = `invoices/${invoiceId}.pdf`;
-        const file = bucket.file(fileName);
+export async function uploadPdfToStorage(pdfBuffer, invoiceNumber) {
+    const { bucket } = await import('../config/firebase.js');
+    const fileName = `invoices/${invoiceNumber}.pdf`;
+    const file = bucket.file(fileName);
 
-        await file.save(pdfBuffer, {
-            metadata: {
-                contentType: 'application/pdf'
-            },
-            public: true
-        });
+    await file.save(pdfBuffer, {
+        metadata: {
+            contentType: 'application/pdf'
+        }
+    });
 
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-        return publicUrl;
-    } catch (error) {
-        console.error('PDF upload error:', error);
-        throw new Error('Failed to upload PDF to storage');
-    }
+    await file.makePublic();
+    return `https://storage.googleapis.com/${bucket.name}/${fileName}`;
 }
